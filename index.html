@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game PWA - Enhanced</title>
+    <link rel="manifest" id="manifest-placeholder">
+    <meta name="theme-color" content="#667eea">
+    <style>
+        :root {
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-container: rgba(255, 255, 255, 0.95);
+            --text-color: #333;
+            --canvas-bg: #f0f0f0;
+            --canvas-border: #333;
+            --grid-color: #e0e0e0;
+            --snake-head: #2E7D32;
+            --snake-body: #4CAF50;
+            --food-color: #f44336;
+            --arrow-bg: linear-gradient(145deg, #667eea, #764ba2);
+            --arrow-active: linear-gradient(145deg, #5a6fd8, #6a4c93);
+            --modal-bg: rgba(255, 255, 255, 0.98);
+            --achievement-gold: #FFD700;
+            --achievement-silver: #C0C0C0;
+            --achievement-bronze: #CD7F32;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            --bg-container: rgba(20, 25, 35, 0.95);
+            --text-color: #ecf0f1;
+            --canvas-bg: #1a1a2e;
+            --canvas-border: #00ff41;
+            --grid-color: #16213e;
+            --snake-head: #00ff41;
+            --snake-body: #39ff14;
+            --food-color: #ff6b6b;
+            --arrow-bg: linear-gradient(145deg, #4a90e2, #357abd);
+            --arrow-active: linear-gradient(145deg, #357abd, #2a6ca3);
+            --modal-bg: rgba(20, 25, 35, 0.98);
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: var(--bg-primary);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .game-container {
+            background: var(--bg-container);
+            border-radius: 20px;
+            padding: 20px 20px 15px 20px; /* Adjusted top padding for buttons */
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            width: 90vw;
+            max-width: 500px;
+            position: relative;
+            transition: all 0.3s ease;
+            margin-top: 60px; /* Space for top buttons */
+        }
+
+        /* FIXED HEADER BUTTONS - NO OVERLAPPING */
+        .header-buttons {
+            position: absolute;
+            top: -50px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .theme-toggle, .settings-btn {
+            background: var(--arrow-bg);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover, .settings-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* ACHIEVEMENTS NOTIFICATION */
+        .achievement-popup {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--achievement-gold);
+            color: #333;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            transform: translateX(300px);
+            transition: transform 0.5s ease;
+            z-index: 2000;
+            max-width: 250px;
+        }
+
+        .achievement-popup.show {
+            transform: translateX(0);
+        }
+
+        /* SETTINGS MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1500;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: var(--modal-bg);
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            color: var(--text-color);
+        }
+
+        .close {
+            color: var(--text-color);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .settings-section {
+            margin-bottom: 25px;
+        }
+
+        .settings-section h3 {
+            color: var(--snake-body);
+            border-bottom: 2px solid var(--grid-color);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--grid-color);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--snake-body);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        .achievements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .achievement {
+            background: var(--grid-color);
+            padding: 15px 10px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+
+        .achievement.unlocked {
+            border-color: var(--achievement-gold);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .achievement-icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .achievement-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .achievement-desc {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .reset-btn {
+            background: var(--food-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            opacity: 0.8;
+        }
+        
+        .game-header {
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+        
+        .score-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        
+        .progress-container {
+            background: var(--grid-color);
+            border-radius: 10px;
+            height: 6px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: var(--snake-body);
+            height: 100%;
+            width: 0%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        
+        #gameCanvas {
+            border: 3px solid var(--canvas-border);
+            border-radius: 10px;
+            background: var(--canvas-bg);
+            display: block;
+            margin: 0 auto 15px;
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            justify-content: center;
+            margin-top: 15px;
+            width: 100%;
+            max-width: 220px;
+            margin-left: auto;
+            margin-right: auto;
+            aspect-ratio: 1;
+        }
+        
+        .control-btn {
+            background: var(--arrow-bg);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.05s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 65px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.85);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            background: var(--arrow-active);
+        }
+        
+        .control-btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            opacity: 0;
+            transition: opacity 0.05s ease;
+            pointer-events: none;
+        }
+        
+        .control-btn:active:before {
+            opacity: 1;
+        }
+        
+        .up { grid-column: 2; grid-row: 1; }
+        .left { grid-column: 1; grid-row: 2; }
+        .right { grid-column: 3; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 3; }
+        
+        .message {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+            display: none;
+            color: var(--text-color);
+        }
+        
+        .win-message {
+            color: var(--snake-body);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .lose-message {
+            color: var(--food-color);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        
+        .restart-btn {
+            background: var(--snake-body);
+            color: var(--canvas-bg);
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            display: none;
+            transition: all 0.3s ease;
+        }
+        
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 15px;
+                margin: 5px;
+                width: 95vw;
+                margin-top: 55px;
+            }
+            
+            .header-buttons {
+                top: -45px;
+            }
+
+            .theme-toggle, .settings-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            
+            .controls {
+                gap: 6px;
+                max-width: 200px;
+            }
+            
+            .control-btn {
+                font-size: 20px;
+                min-height: 55px;
+                border-radius: 12px;
+            }
+
+            .modal-content {
+                margin: 10% auto;
+                padding: 20px;
+                width: 95%;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 10px;
+            }
+
+            .achievements-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Achievement Popup -->
+    <div class="achievement-popup" id="achievementPopup">
+        <div>🏆 Achievement Unlocked!</div>
+        <div id="achievementText"></div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>🎮 Game Settings & Stats</h2>
+            
+            <!-- Statistics Section -->
+            <div class="settings-section">
+                <h3>📊 Your Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-number" id="totalGames">0</span>
+                        <span class="stat-label">Games Played</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="gamesWon">0</span>
+                        <span class="stat-label">Games Won</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="highScore">0</span>
+                        <span class="stat-label">High Score</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="totalScore">0</span>
+                        <span class="stat-label">Total Score</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="winRate">0%</span>
+                        <span class="stat-label">Win Rate</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number" id="averageScore">0</span>
+                        <span class="stat-label">Average Score</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements Section -->
+            <div class="settings-section">
+                <h3>🏆 Achievements</h3>
+                <div class="achievements-grid" id="achievementsGrid">
+                    <!-- Achievements will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Reset Data -->
+            <div class="settings-section">
+                <h3>⚠️ Reset Data</h3>
+                <p style="font-size: 14px; opacity: 0.8; margin-bottom: 15px;">This will reset all your stats and achievements permanently.</p>
+                <button class="reset-btn" onclick="resetAllData()">Reset All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <!-- FIXED HEADER BUTTONS - NO OVERLAPPING -->
+        <div class="header-buttons">
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌙</button>
+            <button class="settings-btn" id="settingsBtn" title="Settings & Stats">⚙️</button>
+        </div>
+
+        <div class="game-header">
+            <div class="score-info">
+                <div>Score: <span id="score">0</span></div>
+                <div>Length: <span id="length">3</span></div>
+                <div>Target: <span id="target">25</span></div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        
+        <div class="message win-message" id="winMessage">
+            🏆 CONGRATULATIONS! You reached the target! 🏆
+        </div>
+        
+        <div class="message lose-message" id="loseMessage">
+            💥 Game Over! Try again! 💥
+        </div>
+        
+        <button class="restart-btn" id="restartBtn">Play Again</button>
+        
+        <div class="controls">
+            <button class="control-btn up" data-direction="up">↑</button>
+            <button class="control-btn left" data-direction="left">←</button>
+            <button class="control-btn right" data-direction="right">→</button>
+            <button class="control-btn down" data-direction="down">↓</button>
+        </div>
+    </div>
+
+    <script>
+        // GAME STATISTICS & ACHIEVEMENTS SYSTEM
+        const achievements = [
+            { id: 'firstGame', name: 'First Steps', desc: 'Play your first game', icon: '🎮', unlocked: false },
+            { id: 'firstWin', name: 'Victory!', desc: 'Win your first game', icon: '🏆', unlocked: false },
+            { id: 'score10', name: 'Growing Up', desc: 'Reach score of 10', icon: '🐍', unlocked: false },
+            { id: 'score20', name: 'Getting Long', desc: 'Reach score of 20', icon: '🏅', unlocked: false },
+            { id: 'perfectGame', name: 'Perfect!', desc: 'Win without dying', icon: '⭐', unlocked: false },
+            { id: 'speedster', name: 'Speedster', desc: 'Win in under 2 minutes', icon: '⚡', unlocked: false },
+            { id: 'persistent', name: 'Persistent', desc: 'Play 10 games', icon: '💪', unlocked: false },
+            { id: 'veteran', name: 'Veteran', desc: 'Play 50 games', icon: '🎖️', unlocked: false },
+            { id: 'winStreak', name: 'Win Streak', desc: 'Win 3 games in a row', icon: '🔥', unlocked: false }
+        ];
+
+        let gameStats = {
+            totalGames: 0,
+            gamesWon: 0,
+            highScore: 0,
+            totalScore: 0,
+            currentStreak: 0,
+            gameStartTime: 0
+        };
+
+        // Load saved data
+        function loadGameData() {
+            const saved = localStorage.getItem('snakeGameStats');
+            if (saved) {
+                gameStats = { ...gameStats, ...JSON.parse(saved) };
+            }
+
+            const savedAchievements = localStorage.getItem('snakeAchievements');
+            if (savedAchievements) {
+                const saved = JSON.parse(savedAchievements);
+                achievements.forEach(achievement => {
+                    const savedAchievement = saved.find(a => a.id === achievement.id);
+                    if (savedAchievement) {
+                        achievement.unlocked = savedAchievement.unlocked;
+                    }
+                });
+            }
+        }
+
+        function saveGameData() {
+            localStorage.setItem('snakeGameStats', JSON.stringify(gameStats));
+            localStorage.setItem('snakeAchievements', JSON.stringify(achievements));
+        }
+
+        function checkAchievements(gameWon, finalScore) {
+            const newAchievements = [];
+
+            // First game
+            if (gameStats.totalGames === 1 && !achievements.find(a => a.id === 'firstGame').unlocked) {
+                unlockAchievement('firstGame', newAchievements);
+            }
+
+            // First win
+            if (gameWon && gameStats.gamesWon === 1 && !achievements.find(a => a.id === 'firstWin').unlocked) {
+                unlockAchievement('firstWin', newAchievements);
+            }
+
+            // Score milestones
+            if (finalScore >= 10 && !achievements.find(a => a.id === 'score10').unlocked) {
+                unlockAchievement('score10', newAchievements);
+            }
+            if (finalScore >= 20 && !achievements.find(a => a.id === 'score20').unlocked) {
+                unlockAchievement('score20', newAchievements);
+            }
+
+            // Perfect game (win without dying)
+            if (gameWon && !achievements.find(a => a.id === 'perfectGame').unlocked) {
+                unlockAchievement('perfectGame', newAchievements);
+            }
+
+            // Speed achievement (under 2 minutes)
+            const gameTime = (Date.now() - gameStats.gameStartTime) / 1000;
+            if (gameWon && gameTime < 120 && !achievements.find(a => a.id === 'speedster').unlocked) {
+                unlockAchievement('speedster', newAchievements);
+            }
+
+            // Play count achievements
+            if (gameStats.totalGames >= 10 && !achievements.find(a => a.id === 'persistent').unlocked) {
+                unlockAchievement('persistent', newAchievements);
+            }
+            if (gameStats.totalGames >= 50 && !achievements.find(a => a.id === 'veteran').unlocked) {
+                unlockAchievement('veteran', newAchievements);
+            }
+
+            // Win streak
+            if (gameStats.currentStreak >= 3 && !achievements.find(a => a.id === 'winStreak').unlocked) {
+                unlockAchievement('winStreak', newAchievements);
+            }
+
+            // Show achievement notifications
+            newAchievements.forEach((achievement, index) => {
+                setTimeout(() => showAchievementPopup(achievement), index * 2000);
+            });
+        }
+
+        function unlockAchievement(achievementId, newAchievements) {
+            const achievement = achievements.find(a => a.id === achievementId);
+            if (achievement && !achievement.unlocked) {
+                achievement.unlocked = true;
+                newAchievements.push(achievement);
+            }
+        }
+
+        function showAchievementPopup(achievement) {
+            const popup = document.getElementById('achievementPopup');
+            const text = document.getElementById('achievementText');
+            text.innerHTML = `<strong>${achievement.icon} ${achievement.name}</strong><br>${achievement.desc}`;
+            
+            popup.classList.add('show');
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('totalGames').textContent = gameStats.totalGames;
+            document.getElementById('gamesWon').textContent = gameStats.gamesWon;
+            document.getElementById('highScore').textContent = gameStats.highScore;
+            document.getElementById('totalScore').textContent = gameStats.totalScore;
+            
+            const winRate = gameStats.totalGames > 0 ? Math.round((gameStats.gamesWon / gameStats.totalGames) * 100) : 0;
+            document.getElementById('winRate').textContent = winRate + '%';
+            
+            const avgScore = gameStats.totalGames > 0 ? Math.round(gameStats.totalScore / gameStats.totalGames) : 0;
+            document.getElementById('averageScore').textContent = avgScore;
+        }
+
+        function updateAchievementsDisplay() {
+            const grid = document.getElementById('achievementsGrid');
+            grid.innerHTML = '';
+            
+            achievements.forEach(achievement => {
+                const div = document.createElement('div');
+                div.className = `achievement ${achievement.unlocked ? 'unlocked' : ''}`;
+                div.innerHTML = `
+                    <span class="achievement-icon">${achievement.unlocked ? achievement.icon : '🔒'}</span>
+                    <div class="achievement-name">${achievement.name}</div>
+                    <div class="achievement-desc">${achievement.desc}</div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function resetAllData() {
+            if (confirm('Are you sure you want to reset all your data? This cannot be undone.')) {
+                localStorage.removeItem('snakeGameStats');
+                localStorage.removeItem('snakeAchievements');
+                localStorage.removeItem('theme');
+                
+                // Reset in-memory data
+                gameStats = {
+                    totalGames: 0,
+                    gamesWon: 0,
+                    highScore: 0,
+                    totalScore: 0,
+                    currentStreak: 0,
+                    gameStartTime: 0
+                };
+                
+                achievements.forEach(achievement => achievement.unlocked = false);
+                
+                updateStatsDisplay();
+                updateAchievementsDisplay();
+                saveGameData();
+                
+                alert('All data has been reset successfully!');
+            }
+        }
+
+        // PWA SETUP
+        function createManifest() {
+            const manifest = {
+                name: "Snake Game PWA - Enhanced",
+                short_name: "Snake Enhanced",
+                description: "Classic Snake Game with Achievements & Dark Theme",
+                start_url: "/",
+                display: "standalone",
+                background_color: "#667eea",
+                theme_color: "#667eea",
+                icons: [
+                    {
+                        src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAJkSURBVHgB7VdNSwJBFL5gkVBQWBSEEUVBEJRFUFBQUBBBQVFBQUFBQUFBQVFBQVFBQVFBQUFBQVFBQUFBQVFBQRBEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRA",
+                        sizes: "32x32",
+                        type: "image/png"
+                    }
+                ]
+            };
+
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            
+            const link = document.getElementById('manifest-placeholder');
+            link.href = manifestURL;
+        }
+
+        function createServiceWorker() {
+            const swCode = `
+                const CACHE_NAME = 'snake-game-enhanced-v1';
+                const urlsToCache = [
+                    '/',
+                    '/offline.html'
+                ];
+
+                self.addEventListener('install', function(event) {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME)
+                            .then(function(cache) {
+                                return cache.addAll(urlsToCache);
+                            })
+                    );
+                });
+
+                self.addEventListener('fetch', function(event) {
+                    event.respondWith(
+                        caches.match(event.request)
+                            .then(function(response) {
+                                if (response) {
+                                    return response;
+                                }
+                                return fetch(event.request);
+                            }
+                        )
+                    );
+                });
+            `;
+
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            const swURL = URL.createObjectURL(swBlob);
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(swURL)
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW registration failed'));
+            }
+        }
+
+        // THEME & MODAL FUNCTIONALITY
+        const themeToggle = document.getElementById('themeToggle');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeModal = document.getElementById('closeModal');
+        const body = document.body;
+
+        function toggleTheme() {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            body.setAttribute('data-theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            
+            localStorage.setItem('theme', newTheme);
+        }
+
+        function openSettings() {
+            updateStatsDisplay();
+            updateAchievementsDisplay();
+            settingsModal.style.display = 'block';
+        }
+
+        function closeSettings() {
+            settingsModal.style.display = 'none';
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        body.setAttribute('data-theme', savedTheme);
+        themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+        // Event listeners
+        themeToggle.addEventListener('click', toggleTheme);
+        settingsBtn.addEventListener('click', openSettings);
+        closeModal.addEventListener('click', closeSettings);
+        
+        window.addEventListener('click', (event) => {
+            if (event.target === settingsModal) {
+                closeSettings();
+            }
+        });
+
+        // GAME LOGIC
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const lengthEl = document.getElementById('length');
+        const targetEl = document.getElementById('target');
+        const progressBar = document.getElementById('progressBar');
+        const winMessage = document.getElementById('winMessage');
+        const loseMessage = document.getElementById('loseMessage');
+        const restartBtn = document.getElementById('restartBtn');
+
+        const GRID_SIZE = 20;
+        const CANVAS_SIZE = 400;
+        const TARGET_LENGTH = 25;
+        const GAME_SPEED = 250;
+
+        let gameRunning = false;
+        let gameWon = false;
+        let score = 0;
+        let snake = [];
+        let direction = { x: 0, y: 0 };
+        let nextDirection = { x: 0, y: 0 };
+        let food = {};
+        let inputBuffer = [];
+        let lastInputTime = 0;
+
+        function initGame() {
+            snake = [
+                { x: 200, y: 200 },
+                { x: 180, y: 200 },
+                { x: 160, y: 200 }
+            ];
+            
+            direction = { x: 0, y: 0 };
+            nextDirection = { x: 0, y: 0 };
+            score = 0;
+            gameRunning = true;
+            gameWon = false;
+            inputBuffer = [];
+            lastInputTime = 0;
+            
+            winMessage.style.display = 'none';
+            loseMessage.style.display = 'none';
+            restartBtn.style.display = 'none';
+            
+            // Track game start
+            gameStats.gameStartTime = Date.now();
+            
+            updateUI();
+            spawnFood();
+        }
+
+        function spawnFood() {
+            let validPosition = false;
+            while (!validPosition) {
+                food = {
+                    x: Math.floor(Math.random() * (CANVAS_SIZE / GRID_SIZE)) * GRID_SIZE,
+                    y: Math.floor(Math.random() * (CANVAS_SIZE / GRID_SIZE)) * GRID_SIZE
+                };
+                
+                validPosition = !snake.some(segment => 
+                    segment.x === food.x && segment.y === food.y
+                );
+            }
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            lengthEl.textContent = snake.length;
+            
+            const progress = Math.min((snake.length / TARGET_LENGTH) * 100, 100);
+            progressBar.style.width = progress + '%';
+        }
+
+        function getThemeColors() {
+            const theme = body.getAttribute('data-theme');
+            if (theme === 'dark') {
+                return {
+                    canvas: '#1a1a2e',
+                    grid: '#16213e',
+                    snakeHead: '#00ff41',
+                    snakeBody: '#39ff14',
+                    food: '#ff6b6b'
+                };
+            }
+            return {
+                canvas: '#f0f0f0',
+                grid: '#e0e0e0',
+                snakeHead: '#2E7D32',
+                snakeBody: '#4CAF50',
+                food: '#f44336'
+            };
+        }
+
+        function draw() {
+            const colors = getThemeColors();
+            
+            ctx.fillStyle = colors.canvas;
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            ctx.strokeStyle = colors.grid;
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= CANVAS_SIZE; i += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, CANVAS_SIZE);
+                ctx.moveTo(0, i);
+                ctx.lineTo(CANVAS_SIZE, i);
+                ctx.stroke();
+            }
+
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? colors.snakeHead : colors.snakeBody;
+                ctx.fillRect(segment.x + 1, segment.y + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+            });
+
+            ctx.fillStyle = colors.food;
+            ctx.fillRect(food.x + 1, food.y + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+        }
+
+        function update() {
+            if (!gameRunning || gameWon) return;
+
+            if (inputBuffer.length > 0) {
+                const nextDir = inputBuffer.shift();
+                nextDirection = nextDir;
+            }
+
+            if (nextDirection.x !== 0 || nextDirection.y !== 0) {
+                direction = { ...nextDirection };
+            }
+
+            if (direction.x === 0 && direction.y === 0) return;
+
+            const head = { ...snake[0] };
+            head.x += direction.x * GRID_SIZE;
+            head.y += direction.y * GRID_SIZE;
+
+            if (head.x < 0 || head.x >= CANVAS_SIZE || 
+                head.y < 0 || head.y >= CANVAS_SIZE) {
+                gameOver();
+                return;
+            }
+
+            if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                updateUI();
+                spawnFood();
+                
+                if (snake.length >= TARGET_LENGTH) {
+                    winGame();
+                    return;
+                }
+            } else {
+                snake.pop();
+            }
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            loseMessage.style.display = 'block';
+            restartBtn.style.display = 'inline-block';
+            
+            // Update stats
+            gameStats.totalGames++;
+            gameStats.totalScore += score;
+            gameStats.currentStreak = 0;
+            if (score > gameStats.highScore) {
+                gameStats.highScore = score;
+            }
+            
+            checkAchievements(false, score);
+            saveGameData();
+        }
+
+        function winGame() {
+            gameRunning = false;
+            gameWon = true;
+            winMessage.style.display = 'block';
+            restartBtn.style.display = 'inline-block';
+            
+            // Update stats
+            gameStats.totalGames++;
+            gameStats.gamesWon++;
+            gameStats.totalScore += score;
+            gameStats.currentStreak++;
+            if (score > gameStats.highScore) {
+                gameStats.highScore = score;
+            }
+            
+            checkAchievements(true, score);
+            saveGameData();
+        }
+
+        function changeDirection(newDirection) {
+            if (!gameRunning || gameWon) return;
+            
+            const now = Date.now();
+            if (now - lastInputTime < 30) return;
+            lastInputTime = now;
+            
+            if (newDirection.x === -direction.x && newDirection.y === -direction.y) {
+                return;
+            }
+            
+            if (inputBuffer.length < 3) {
+                inputBuffer.push(newDirection);
+            }
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    e.preventDefault();
+                    changeDirection({ x: 0, y: -1 });
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    e.preventDefault();
+                    changeDirection({ x: 0, y: 1 });
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    e.preventDefault();
+                    changeDirection({ x: -1, y: 0 });
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    e.preventDefault();
+                    changeDirection({ x: 1, y: 0 });
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    if (settingsModal.style.display === 'block') {
+                        closeSettings();
+                    }
+                    break;
+            }
+        });
+
+        document.querySelectorAll('.control-btn').forEach(button => {
+            let touchProcessed = false;
+            
+            function handleInput(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                if (e.type === 'touchstart') {
+                    touchProcessed = true;
+                } else if (e.type === 'click' && touchProcessed) {
+                    touchProcessed = false;
+                    return;
+                }
+                
+                const dir = e.currentTarget.getAttribute('data-direction');
+                
+                switch(dir) {
+                    case 'up':
+                        changeDirection({ x: 0, y: -1 });
+                        break;
+                    case 'down':
+                        changeDirection({ x: 0, y: 1 });
+                        break;
+                    case 'left':
+                        changeDirection({ x: -1, y: 0 });
+                        break;
+                    case 'right':
+                        changeDirection({ x: 1, y: 0 });
+                        break;
+                }
+            }
+
+            button.addEventListener('touchstart', handleInput, {passive: false});
+            button.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                setTimeout(() => touchProcessed = false, 100);
+            }, {passive: false});
+            button.addEventListener('click', handleInput, {passive: false});
+            button.addEventListener('contextmenu', (e) => e.preventDefault());
+        });
+
+        restartBtn.addEventListener('click', initGame);
+
+        function gameLoop() {
+            update();
+            draw();
+        }
+
+        // Initialize everything
+        loadGameData();
+        createManifest();
+        createServiceWorker();
+        initGame();
+        setInterval(gameLoop, GAME_SPEED);
+
+        document.addEventListener('dblclick', (e) => e.preventDefault());
+        document.addEventListener('selectstart', (e) => e.preventDefault());
+    </script>
+</body>
+</html>
